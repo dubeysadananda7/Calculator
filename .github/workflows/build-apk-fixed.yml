@@ -1,0 +1,67 @@
+name: Build Calculator APK (Fixed)
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Find and extract uploaded project ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          ZIP_FILE="Calculator-PrivateTools-GitHub-Final-v2.zip"
+          if [ ! -f "$ZIP_FILE" ]; then
+            echo "Missing $ZIP_FILE in repository root. Upload this ZIP to the root of the repository and commit it."
+            exit 1
+          fi
+          unzip -o "$ZIP_FILE" -d extracted-project
+          PROJECT_DIR="extracted-project/Calculator-PrivateTools-Android"
+          test -f "$PROJECT_DIR/settings.gradle"
+          test -f "$PROJECT_DIR/app/build.gradle"
+          test -f "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Gradle 9.6.0
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+
+      # v4 avoids requesting Google's retired SDK package named "tools".
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
+
+      - name: Install Android API 37 SDK and supported build tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager --install "platforms;android-37" "build-tools;36.0.0" "platform-tools"
+
+      - name: Build debug APK
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: gradle --no-daemon --stacktrace assembleDebug
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Calculator-debug-APK
+          path: extracted-project/Calculator-PrivateTools-Android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
