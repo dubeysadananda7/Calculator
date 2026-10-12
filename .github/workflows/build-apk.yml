@@ -16,13 +16,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Find and extract uploaded project ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          ZIP_FILE="Calculator-PrivateTools-GitHub-Final.zip"
+          if [ ! -f "$ZIP_FILE" ]; then
+            echo "Missing $ZIP_FILE in repository root. Upload the project ZIP to the repository root, then commit it."
+            exit 1
+          fi
+          unzip -o "$ZIP_FILE" -d extracted-project
+          PROJECT_DIR="extracted-project/Calculator-PrivateTools-Android"
+          test -f "$PROJECT_DIR/settings.gradle"
+          test -f "$PROJECT_DIR/app/build.gradle"
+          test -f "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Install Gradle 8.13
+      - name: Install Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.13'
@@ -35,19 +51,14 @@ jobs:
           yes | sdkmanager --licenses >/dev/null 2>&1 || true
           sdkmanager --install "platforms;android-37" "build-tools;37.0.0" "platform-tools"
 
-      - name: Verify project files
-        run: |
-          test -f settings.gradle
-          test -f app/build.gradle
-          test -f app/src/main/AndroidManifest.xml
-
       - name: Build debug APK
+        working-directory: ${{ env.PROJECT_DIR }}
         run: gradle --no-daemon --stacktrace assembleDebug
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: Calculator-debug-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: extracted-project/Calculator-PrivateTools-Android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           
