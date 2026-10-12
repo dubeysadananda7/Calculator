@@ -20,7 +20,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ZIP_FILE=ZIP_FILE="Calculator-PrivateTools-GitHub-Final-v2-5.zip"
+          ZIP_FILE="Calculator-PrivateTools-GitHub-Final-v2-5.zip"
           if [ ! -f "$ZIP_FILE" ]; then
             echo "Missing $ZIP_FILE in repository root. Upload this ZIP to the repository root and commit it."
             exit 1
